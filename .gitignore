@@ -1,0 +1,12 @@
+.venv/
+runtime/
+conf/*.xml
+__pycache__/
+.DS_Store
+
+# Source data and local/generated runtime files
+household_power_consumption.txt
+*.zip
+*.pkl
+.pytest_cache/
+data/silver/
