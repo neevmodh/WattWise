@@ -1,0 +1,12 @@
+{
+  "passed": [
+    "Source row count and original wall-clock boundaries",
+    "Unique timestamps",
+    "Energy conservation",
+    "Hourly/daily agreement",
+    "Missing-data accounting",
+    "Coverage bounds",
+    "Chronological forecast",
+    "Independent Hadoop MapReduce/Spark agreement"
+  ]
+}

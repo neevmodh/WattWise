@@ -1,0 +1,15 @@
+{
+  "verified_at_utc": "2026-10-12T15:50:23.835443+00:00",
+  "automated_tests_passed": 9,
+  "checks": [
+    "Every dashboard page",
+    "Single-day heatmap",
+    "Year preset",
+    "Empty forecast range",
+    "Missing-only day",
+    "Filtered export dates",
+    "Missing-data plot gaps",
+    "Past-only model features",
+    "Calendar lags"
+  ]
+}

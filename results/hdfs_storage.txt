@@ -1,0 +1,3 @@
+2026-10-12 19:37:29,571 WARN  org.apache.hadoop.util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+132960755  132960755  /energy-insights/raw
+34329777   34329777   /energy-insights/silver
