@@ -1,0 +1,43 @@
+{
+  "quality": {
+    "rows": 2075259,
+    "start": "2006-12-16 17:24:00",
+    "end": "2010-11-26 21:02:00",
+    "invalid_timestamps": 0,
+    "missing_global_active_power": 25979,
+    "missing_global_reactive_power": 25979,
+    "missing_voltage": 25979,
+    "missing_global_intensity": 25979,
+    "missing_sub_metering_1": 25979,
+    "missing_sub_metering_2": 25979,
+    "missing_sub_metering_3": 25979,
+    "negative_power": 0,
+    "duplicate_timestamps": 0,
+    "expected_minutes": 2075259,
+    "absent_minutes": 0,
+    "negative_unmetered_minutes": 1050
+  },
+  "totals": {
+    "observed_energy_kwh": 37283.74770000161,
+    "mean_kw": 1.0916150365007122,
+    "peak_kw": 11.122,
+    "kitchen_wh": 2299135.0,
+    "laundry_wh": 2661031.0,
+    "climate_wh": 13235167.0,
+    "other_wh": 19088414.70000545
+  },
+  "spark_version": "3.5.6",
+  "master": "yarn",
+  "application_id": "application_1791813966040_0001",
+  "input": "hdfs://localhost:19000/energy-insights/raw/household_power_consumption.txt",
+  "parquet_location": "hdfs://localhost:19000/energy-insights/silver",
+  "runtime_seconds": 28.18,
+  "eligible_days": 1417,
+  "total_days": 1442,
+  "units": {
+    "power": "kW",
+    "minute_energy": "kW / 60 = kWh",
+    "sub_metering": "Wh per minute"
+  },
+  "timestamp_policy": "Naive source wall-clock values; UTC session used solely for deterministic parsing; no timezone conversion."
+}

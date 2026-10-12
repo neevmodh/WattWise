@@ -1,0 +1,69 @@
+{
+  "selected_on_validation": "Ridge",
+  "validation": {
+    "Weekly baseline": {
+      "mae_kwh": 5.736802718168815,
+      "rmse_kwh": 7.417658627668101,
+      "wape_percent": 22.68831647335108
+    },
+    "Ridge": {
+      "mae_kwh": 4.50911236071085,
+      "rmse_kwh": 5.598517522003782,
+      "wape_percent": 17.83295910276001
+    },
+    "Random forest": {
+      "mae_kwh": 4.566345168358204,
+      "rmse_kwh": 5.606946210297073,
+      "wape_percent": 18.05930749163682
+    },
+    "Gradient boosting": {
+      "mae_kwh": 4.8997979117223,
+      "rmse_kwh": 6.211176463092895,
+      "wape_percent": 19.378070179151134
+    }
+  },
+  "test": {
+    "Weekly baseline": {
+      "mae_kwh": 5.9955919885550735,
+      "rmse_kwh": 8.02598389901502,
+      "wape_percent": 24.036819224487083
+    },
+    "Ridge": {
+      "mae_kwh": 4.288176120362353,
+      "rmse_kwh": 5.811579137915296,
+      "wape_percent": 17.191649199056474
+    },
+    "Random forest": {
+      "mae_kwh": 3.9432909403855825,
+      "rmse_kwh": 5.3562777418158865,
+      "wape_percent": 15.808976271990904
+    },
+    "Gradient boosting": {
+      "mae_kwh": 4.238369270765337,
+      "rmse_kwh": 5.52586231189311,
+      "wape_percent": 16.99196946064365
+    }
+  },
+  "splits": {
+    "train": {
+      "start": "2007-01-14",
+      "end": "2009-02-10",
+      "days": 699
+    },
+    "validation": {
+      "start": "2009-02-11",
+      "end": "2009-11-30",
+      "days": 233
+    },
+    "test": {
+      "start": "2009-12-01",
+      "end": "2010-11-25",
+      "days": 233
+    }
+  },
+  "excluded_feature_or_target_days": 277,
+  "anomaly_days": 53,
+  "next_day_forecast": null,
+  "evaluation": "Rolling one-day-ahead evaluation. Prior observed days are available at prediction time. Calendar lags preserved; incomplete targets and lag windows excluded, never interpolated.",
+  "anomaly_method": "Absolute robust z > 3.5 relative to previous 28 calendar days, min 14 eligible observations. Flags are not labeled faults."
+}
