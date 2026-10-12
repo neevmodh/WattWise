@@ -1,0 +1,23 @@
+{
+  "source": "/Users/neev/Downloads/BIGDATA/household_power_consumption.txt",
+  "rows": 2075259,
+  "bytes": 132960755,
+  "sha256": "4259c9d7ece5dbee9ab8d53682baac68d791c864f0f64a52b4043cb3b90894b7",
+  "columns": [
+    "Date",
+    "Time",
+    "Global_active_power",
+    "Global_reactive_power",
+    "Voltage",
+    "Global_intensity",
+    "Sub_metering_1",
+    "Sub_metering_2",
+    "Sub_metering_3"
+  ],
+  "fully_missing_measurement_rows": 25979,
+  "fully_missing_days": 9,
+  "first_day_valid_minutes": 396,
+  "last_day_valid_minutes": 1263,
+  "start": "2006-12-16 17:24:00",
+  "end": "2010-11-26 21:02:00"
+}
