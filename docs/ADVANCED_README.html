@@ -1,0 +1,1530 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WattWise · Advanced Project Guide</title><style>
+*{box-sizing:border-box}body{margin:0;background:#0c1321;color:#edf2fa;font:15px/1.8 system-ui}main{max-width:1160px;margin:auto;padding:45px 28px}h1{font-size:48px;letter-spacing:-2px;line-height:1.15;color:#70e7cb}h2{font-size:27px;letter-spacing:-.5px;border-top:1px solid #30415b;margin-top:45px;padding-top:25px;scroll-margin-top:20px}h3{font-size:19px}p,li{color:#bccce0}a{color:#65e2ca;overflow-wrap:anywhere}code{font:13px ui-monospace;background:#17263b;border-radius:4px;padding:3px 5px;overflow-wrap:anywhere}pre{padding:20px;border:1px solid #30415b;background:#142034;border-radius:9px;overflow:auto;line-height:1.6}pre code{padding:0;background:transparent}table{border-collapse:collapse;width:100%;font-size:13px;margin:24px 0}th,td{padding:12px;border-bottom:1px solid #30415b;text-align:left;vertical-align:top}th{background:#1a2c44;color:#70e7cb}tr:nth-child(even){background:#111e31}.diagram{background:#102035;border:1px solid #30415b;padding:12px;border-radius:12px;overflow:auto;margin:25px 0}.diagram svg{display:block;width:100%;min-width:740px;font-family:system-ui}blockquote{border-left:3px solid #65e2ca;padding-left:20px}@media(max-width:700px){main{padding:24px 14px}h1{font-size:36px}table{display:block;overflow-x:auto}h2{font-size:23px}}@media print{body{background:white;color:#172438}main{padding:0;max-width:none}p,li{color:#263a51}h2{break-after:avoid}table{font-size:10px}h1,th,a{color:#176d5d}pre{white-space:pre-wrap}.diagram{break-inside:avoid}}
+</style></head><body><main><h1 id="wattwise">WattWise</h1>
+<p><strong>Household Energy Analytics and Forecasting Using Hadoop and Spark</strong></p>
+<h2 id="household-electricity-analytics-with-hadoop-hdfs-yarn-spark-and-mapreduce">Household Electricity Analytics with Hadoop, HDFS, YARN, Spark, and MapReduce</h2>
+<p>An end-to-end big data course project that converts minute-level electricity readings into verified energy summaries, demand patterns, next-day forecasting benchmarks, and unusual-consumption flags.</p>
+<p><strong>Verified scope:</strong> 2,075,259 source records · 2,049,280 valid power readings · 1442 calendar days · two successful YARN applications · eight data checks · nine automated tests.</p>
+<p>The project uses the supplied dataset at <code>/Users/neev/Downloads/BIGDATA/household_power_consumption.txt</code>. Its working directory is <code>/Users/neev/Downloads/BIGDATA/WattWise</code>. The implemented deployment is a single-node pseudo-distributed cluster: HDFS and YARN services run as separate processes on one Mac. Modeling runs on small daily aggregates in the client process.</p>
+<h2 id="contents">Contents</h2>
+<ol>
+<li><a href="#quick-start">Quick start</a></li>
+<li><a href="#problem-objectives-and-project-scope">Problem, objectives, and project scope</a></li>
+<li><a href="#dataset-origin-and-provenance">Dataset origin and provenance</a></li>
+<li><a href="#complete-input-data-dictionary">Complete input data dictionary</a></li>
+<li><a href="#electricity-units-and-energy-calculations">Electricity units and energy calculations</a></li>
+<li><a href="#measured-dataset-profile">Measured dataset profile</a></li>
+<li><a href="#missing-data-and-temporal-coverage">Missing data and temporal coverage</a></li>
+<li><a href="#end-to-end-architecture">End-to-end architecture</a></li>
+<li><a href="#deployment-and-service-responsibilities">Deployment and service responsibilities</a></li>
+<li><a href="#data-layers-and-output-schemas">Data layers and output schemas</a></li>
+<li><a href="#spark-processing-explained">Spark processing explained</a></li>
+<li><a href="#independent-hadoop-mapreduce-verification">Independent Hadoop MapReduce verification</a></li>
+<li><a href="#forecasting-methodology">Forecasting methodology</a></li>
+<li><a href="#model-results-and-interpretation">Model results and interpretation</a></li>
+<li><a href="#anomaly-detection">Anomaly detection</a></li>
+<li><a href="#dashboard-pages-and-filter-behavior">Dashboard pages and filter behavior</a></li>
+<li><a href="#installation-and-full-reproduction">Installation and full reproduction</a></li>
+<li><a href="#verification-and-execution-evidence">Verification and execution evidence</a></li>
+<li><a href="#repository-map">Repository map</a></li>
+<li><a href="#sql-and-cluster-inspection-examples">SQL and cluster inspection examples</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+<li><a href="#limitations-and-a-future-scaling-path">Limitations and a future scaling path</a></li>
+<li><a href="#presentation-and-viva-notes">Presentation and viva notes</a></li>
+<li><a href="#references-and-dataset-attribution">References and dataset attribution</a></li>
+</ol>
+<h2 id="quick-start">Quick start</h2>
+<p>For a fresh GitHub checkout, create the Python environment below, then obtain the original dataset with <code>.venv/bin/python scripts/fetch_dataset.py</code>. The raw 133 MB file is excluded from Git; saved aggregates and execution evidence are included. The download utility verifies the exact source checksum. Dataset attribution and access details are in <code>data/README.md</code>.</p>
+<p>Use the precomputed results immediately:</p>
+<pre><code class="language-bash">cd /Users/neev/Downloads/BIGDATA/WattWise
+bash scripts/dashboard.sh
+</code></pre>
+<p>Open <a href="http://127.0.0.1:18501/">the dashboard</a>. Hadoop does not need to remain running to explore saved results.</p>
+<table>
+<thead>
+<tr>
+<th>Deliverable</th>
+<th>Location</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Interactive application</td>
+<td><code>app.py</code></td>
+<td>Explore six dashboard pages</td>
+</tr>
+<tr>
+<td>Offline report</td>
+<td><code>results/PROJECT_REPORT.html</code></td>
+<td>Read methodology and interactive figures without a server</td>
+</tr>
+<tr>
+<td>Submission narrative</td>
+<td><code>docs/PROJECT_REPORT.md</code></td>
+<td>Written academic report with actual results</td>
+</tr>
+<tr>
+<td>Advanced guide</td>
+<td><code>README.md</code></td>
+<td>Dataset, architecture, implementation, and reproduction</td>
+</tr>
+<tr>
+<td>Formatted advanced guide</td>
+<td><code>docs/ADVANCED_README.html</code></td>
+<td>Read this guide with rendered tables and architecture diagrams</td>
+</tr>
+<tr>
+<td>Viva preparation</td>
+<td><code>docs/VIVA.md</code></td>
+<td>Explain design decisions and limitations</td>
+</tr>
+<tr>
+<td>Source profile</td>
+<td><code>results/dataset_statistics.csv</code></td>
+<td>Full-input descriptive statistics</td>
+</tr>
+<tr>
+<td>Yearly profile</td>
+<td><code>results/dataset_annual.csv</code></td>
+<td>Observed yearly energy and coverage counts</td>
+</tr>
+</tbody>
+</table>
+<h2 id="problem-objectives-and-project-scope">Problem, objectives, and project scope</h2>
+<p>A long sequence of meter readings is difficult to interpret directly. This project addresses six questions:</p>
+<ol>
+<li>How much energy was actually observed, and how much information is missing?</li>
+<li>How does demand change by date, hour, and weekday?</li>
+<li>How much observed energy belongs to each monitored circuit?</li>
+<li>Can earlier observations predict daily consumption on later dates?</li>
+<li>Which days differ strongly from their recent consumption history?</li>
+<li>Can two independent processing frameworks reproduce the same totals?</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Objective</th>
+<th>Implemented method</th>
+<th>Evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Process millions of records</td>
+<td>Spark SQL executed on YARN</td>
+<td>Spark application and job log</td>
+</tr>
+<tr>
+<td>Store typed, queryable data</td>
+<td>HDFS Parquet partitioned by year/month</td>
+<td>Lake path and HDFS storage report</td>
+</tr>
+<tr>
+<td>Account for missing readings</td>
+<td>Null preservation, valid-minute counts, coverage thresholds</td>
+<td>Manifest and quality checks</td>
+</tr>
+<tr>
+<td>Verify calculations independently</td>
+<td>Hadoop Streaming MapReduce</td>
+<td>Daily Spark/MapReduce agreement</td>
+</tr>
+<tr>
+<td>Evaluate forecasting honestly</td>
+<td>Chronological train/validation/test splits</td>
+<td>Model metrics and dated predictions</td>
+</tr>
+<tr>
+<td>Explain consumption</td>
+<td>Six-page dashboard and offline report</td>
+<td>Tables, figures, and filtered exports</td>
+</tr>
+</tbody>
+</table>
+<p>This is a batch analytics and forecasting project. It does not implement live streaming, city-wide monitoring, a Hive service, automatic appliance identification, or a production multi-machine deployment.</p>
+<h3 id="why-use-big-data-tools-here">Why use big data tools here?</h3>
+<p>The file has millions of rows but only about 132.96 MB of text; it can fit on a laptop. Hadoop is used to demonstrate distributed storage, resource scheduling, parallel execution, typed data-lake output, and independent verification. A larger deployment could reuse the processing pattern, but this project does not establish multi-node speedup.</p>
+<p>For the usual “five Vs” discussion: volume is the measured row count; velocity is historical minute sampling, not current ingestion; variety consists of timestamp and electrical measurements; veracity concerns missing readings and unit correctness; value is the resulting analysis and forecast evaluation.</p>
+<h2 id="dataset-origin-and-provenance">Dataset origin and provenance</h2>
+<p>The source is <strong>Individual Household Electric Power Consumption</strong>, by Georges Hebrail and Alice Berard, distributed through UCI. It describes one household in Sceaux, France, with minute sampling between December 2006 and November 2010. UCI identifies it as multivariate time-series data. <a href="https://archive.ics.uci.edu/dataset/235/individual+household+electric+power+consumption">UCI dataset documentation</a></p>
+<p>The following facts are measured from the supplied local file and saved outputs:</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Verified value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Original filename</td>
+<td><code>household_power_consumption.txt</code></td>
+</tr>
+<tr>
+<td>Data records, excluding header</td>
+<td>2,075,259</td>
+</tr>
+<tr>
+<td>Text lines, including header</td>
+<td>2,075,260</td>
+</tr>
+<tr>
+<td>Input columns</td>
+<td>9: two time identifiers and seven measurement fields</td>
+</tr>
+<tr>
+<td>First source timestamp</td>
+<td>2006-12-16 17:24:00</td>
+</tr>
+<tr>
+<td>Last source timestamp</td>
+<td>2010-11-26 21:02:00</td>
+</tr>
+<tr>
+<td>Frequency</td>
+<td>One record per calendar minute within those boundaries</td>
+</tr>
+<tr>
+<td>File size</td>
+<td>132,960,755 bytes; 132.96 decimal MB; 126.80 MiB</td>
+</tr>
+<tr>
+<td>Delimiter</td>
+<td>Semicolon (<code>;</code>)</td>
+</tr>
+<tr>
+<td>Decimal separator</td>
+<td>Period (<code>.</code>)</td>
+</tr>
+<tr>
+<td>Measurement missing markers</td>
+<td><code>?</code> and empty fields in this local file</td>
+</tr>
+<tr>
+<td>Timestamp duplicates</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Absent minute timestamps inside the source interval</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Explicit source timezone</td>
+<td>Not supplied</td>
+</tr>
+<tr>
+<td>Built-in prediction target</td>
+<td>None; this project derives an observed daily-energy target</td>
+</tr>
+</tbody>
+</table>
+<p><strong>SHA-256 of the exact supplied file:</strong></p>
+<pre><code class="language-text">4259c9d7ece5dbee9ab8d53682baac68d791c864f0f64a52b4043cb3b90894b7
+</code></pre>
+<p>This hash distinguishes the actual input from another copy or a changed file. The profile should be regenerated when the source changes. Published metadata and local observations are intentionally distinguished: UCI describes missing fields generally, while this copy includes <code>?</code> tokens.</p>
+<h3 id="example-original-record">Example original record</h3>
+<pre><code class="language-text">Date;Time;Global_active_power;Global_reactive_power;Voltage;Global_intensity;Sub_metering_1;Sub_metering_2;Sub_metering_3
+16/12/2006;17:24:00;4.216;0.418;234.840;18.400;0.000;1.000;17.000
+</code></pre>
+<p>Dates later in the file include single-digit day/month values. Parsing uses <code>d/M/yyyy HH:mm:ss</code>, which accepts them. The parser does not assume that every day or month is zero-padded.</p>
+<h2 id="complete-input-data-dictionary">Complete input data dictionary</h2>
+<table>
+<thead>
+<tr>
+<th>Input field</th>
+<th>Parsed representation</th>
+<th>Meaning and interpretation</th>
+<th>Unit / format</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Date</code></td>
+<td>Part of <code>timestamp</code></td>
+<td>Observation calendar date</td>
+<td>Day/month/year</td>
+</tr>
+<tr>
+<td><code>Time</code></td>
+<td>Part of <code>timestamp</code></td>
+<td>Observation clock time</td>
+<td><code>HH:mm:ss</code></td>
+</tr>
+<tr>
+<td><code>Global_active_power</code></td>
+<td>Nullable double</td>
+<td>Minute-average active power; used to derive observed energy</td>
+<td>kW</td>
+</tr>
+<tr>
+<td><code>Global_reactive_power</code></td>
+<td>Nullable double</td>
+<td>Reactive-power measurement; retained for exploration</td>
+<td>UCI lists kW; see note below</td>
+</tr>
+<tr>
+<td><code>Voltage</code></td>
+<td>Nullable double</td>
+<td>Minute-average voltage</td>
+<td>V</td>
+</tr>
+<tr>
+<td><code>Global_intensity</code></td>
+<td>Nullable double</td>
+<td>Minute-average current</td>
+<td>A</td>
+</tr>
+<tr>
+<td><code>Sub_metering_1</code></td>
+<td>Nullable double</td>
+<td>Kitchen circuit</td>
+<td>Wh per minute</td>
+</tr>
+<tr>
+<td><code>Sub_metering_2</code></td>
+<td>Nullable double</td>
+<td>Laundry-room circuit</td>
+<td>Wh per minute</td>
+</tr>
+<tr>
+<td><code>Sub_metering_3</code></td>
+<td>Nullable double</td>
+<td>Water-heater / air-conditioner circuit</td>
+<td>Wh per minute</td>
+</tr>
+</tbody>
+</table>
+<p>UCI associates circuit 1 with kitchen equipment, circuit 2 with laundry-room equipment including a refrigerator, and circuit 3 with water heating and air conditioning. These are grouped circuits, not individual device labels. UCI describes the reactive-power field in kilowatts; conventional reactive-power notation is kVAR. This project preserves its numeric values and bases energy calculations only on active power. <a href="https://archive.ics.uci.edu/dataset/235/individual+household+electric+power+consumption">Variable descriptions</a></p>
+<p>A null means “not measured here,” not “the household used zero electricity.” Zero is a real numeric value for many sub-meterings and remains distinct from a null.</p>
+<h2 id="electricity-units-and-energy-calculations">Electricity units and energy calculations</h2>
+<p><strong>Power</strong> measures the rate of energy use. <strong>Energy</strong> accumulates power over time. The minute-average active-power reading must be multiplied by a one-minute duration before aggregation.</p>
+<pre><code class="language-text">Minute energy (kWh) = Global_active_power (kW) × (1/60 hour)
+Daily observed energy (kWh) = sum of valid minute energy contributions
+Circuit energy (kWh) = sum of minute sub-metering values (Wh) / 1000
+Other residual energy (Wh) = Global_active_power × 1000/60 − Sub_metering_1 − Sub_metering_2 − Sub_metering_3
+</code></pre>
+<p>For the sample record:</p>
+<pre><code class="language-text">Total minute energy = 4.216 / 60 = 0.0702667 kWh = 70.2667 Wh
+Monitored circuits = 0 + 1 + 17 = 18 Wh
+Other residual = 70.2667 − 18 = 52.2667 Wh
+</code></pre>
+<p>Adding kW readings and calling the result kWh would overstate energy by a factor of 60. Circuit Wh values are already per-minute energy and should not be divided by 60 again.</p>
+<p>Residual energy is a calculated difference, not a fourth meter. The dataset has 1,050 minutes where residual energy is below −0.01 Wh. The pipeline retains these signed values and counts them rather than clamping them to zero. Small inconsistencies can arise from measurement and rounding; the project does not establish their physical cause.</p>
+<h2 id="measured-dataset-profile">Measured dataset profile</h2>
+<p>The statistics below are computed on all non-null values in the supplied file. They are rounded for display. Quantiles describe minute measurements, not daily totals. The underlying CSV retains greater precision.</p>
+<table>
+<thead>
+<tr>
+<th>Measurement</th>
+<th style="text-align: right;">Minimum</th>
+<th style="text-align: right;">25th percentile</th>
+<th style="text-align: right;">Median</th>
+<th style="text-align: right;">Mean</th>
+<th style="text-align: right;">75th percentile</th>
+<th style="text-align: right;">Maximum</th>
+<th style="text-align: right;">Std. dev.</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Global_active_power</code></td>
+<td style="text-align: right;">0.076</td>
+<td style="text-align: right;">0.308</td>
+<td style="text-align: right;">0.602</td>
+<td style="text-align: right;">1.092</td>
+<td style="text-align: right;">1.528</td>
+<td style="text-align: right;">11.122</td>
+<td style="text-align: right;">1.057</td>
+</tr>
+<tr>
+<td><code>Global_reactive_power</code></td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.048</td>
+<td style="text-align: right;">0.100</td>
+<td style="text-align: right;">0.124</td>
+<td style="text-align: right;">0.194</td>
+<td style="text-align: right;">1.390</td>
+<td style="text-align: right;">0.113</td>
+</tr>
+<tr>
+<td><code>Voltage</code></td>
+<td style="text-align: right;">223.200</td>
+<td style="text-align: right;">238.990</td>
+<td style="text-align: right;">241.010</td>
+<td style="text-align: right;">240.840</td>
+<td style="text-align: right;">242.890</td>
+<td style="text-align: right;">254.150</td>
+<td style="text-align: right;">3.240</td>
+</tr>
+<tr>
+<td><code>Global_intensity</code></td>
+<td style="text-align: right;">0.200</td>
+<td style="text-align: right;">1.400</td>
+<td style="text-align: right;">2.600</td>
+<td style="text-align: right;">4.628</td>
+<td style="text-align: right;">6.400</td>
+<td style="text-align: right;">48.400</td>
+<td style="text-align: right;">4.444</td>
+</tr>
+<tr>
+<td><code>Sub_metering_1</code></td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">1.122</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">88.000</td>
+<td style="text-align: right;">6.153</td>
+</tr>
+<tr>
+<td><code>Sub_metering_2</code></td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">1.299</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">80.000</td>
+<td style="text-align: right;">5.822</td>
+</tr>
+<tr>
+<td><code>Sub_metering_3</code></td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">6.458</td>
+<td style="text-align: right;">17.000</td>
+<td style="text-align: right;">31.000</td>
+<td style="text-align: right;">8.437</td>
+</tr>
+</tbody>
+</table>
+<p>Every measurement field has 2,049,280 valid values and 25,979 missing values. Median active power is 0.602 kW while mean active power is about 1.092 kW; higher-demand minutes pull the mean above the median. Zero medians in circuit 1 and circuit 2 indicate that those circuits often recorded no energy during a minute. They do not indicate missing data.</p>
+<h3 id="observed-energy-by-calendar-year">Observed energy by calendar year</h3>
+<table>
+<thead>
+<tr>
+<th>Year</th>
+<th style="text-align: right;">Calendar days</th>
+<th style="text-align: right;">Valid minute readings</th>
+<th style="text-align: right;">Eligible days</th>
+<th style="text-align: right;">Observed energy (kWh)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2006</td>
+<td style="text-align: right;">16</td>
+<td style="text-align: right;">21,992</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">696.89</td>
+</tr>
+<tr>
+<td>2007</td>
+<td style="text-align: right;">365</td>
+<td style="text-align: right;">521,669</td>
+<td style="text-align: right;">361</td>
+<td style="text-align: right;">9,711.80</td>
+</tr>
+<tr>
+<td>2008</td>
+<td style="text-align: right;">366</td>
+<td style="text-align: right;">526,905</td>
+<td style="text-align: right;">366</td>
+<td style="text-align: right;">9,414.88</td>
+</tr>
+<tr>
+<td>2009</td>
+<td style="text-align: right;">365</td>
+<td style="text-align: right;">521,320</td>
+<td style="text-align: right;">361</td>
+<td style="text-align: right;">9,371.92</td>
+</tr>
+<tr>
+<td>2010</td>
+<td style="text-align: right;">330</td>
+<td style="text-align: right;">457,394</td>
+<td style="text-align: right;">314</td>
+<td style="text-align: right;">8,088.25</td>
+</tr>
+</tbody>
+</table>
+<p>2006 and 2010 are partial years. Yearly totals include observed readings even on low-coverage days, so they are not annual consumption estimates for a complete year. A smaller total can reflect a shorter period or missing observations as well as lower demand.</p>
+<h3 id="whole-dataset-energy-summary">Whole-dataset energy summary</h3>
+<table>
+<thead>
+<tr>
+<th>Measurement</th>
+<th style="text-align: right;">Value</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Observed total energy</td>
+<td style="text-align: right;">37,283.75 kWh</td>
+<td>Sum over valid minute readings</td>
+</tr>
+<tr>
+<td>Mean active power</td>
+<td style="text-align: right;">1.092 kW</td>
+<td>Average over valid minutes</td>
+</tr>
+<tr>
+<td>Maximum minute active power</td>
+<td style="text-align: right;">11.122 kW</td>
+<td>Largest minute-average reading</td>
+</tr>
+<tr>
+<td>Eligible-day average</td>
+<td style="text-align: right;">26.19 kWh/day</td>
+<td>Observed energy on days meeting the 95% threshold</td>
+</tr>
+<tr>
+<td>Kitchen observed energy</td>
+<td style="text-align: right;">2,299.135 kWh</td>
+<td>Circuit 1</td>
+</tr>
+<tr>
+<td>Laundry-room observed energy</td>
+<td style="text-align: right;">2,661.031 kWh</td>
+<td>Circuit 2</td>
+</tr>
+<tr>
+<td>Water heating / climate energy</td>
+<td style="text-align: right;">13,235.167 kWh</td>
+<td>Circuit 3</td>
+</tr>
+<tr>
+<td>Other signed residual energy</td>
+<td style="text-align: right;">19,088.415 kWh</td>
+<td>Total minus monitored circuits</td>
+</tr>
+</tbody>
+</table>
+<p>The filtered dashboard's total can differ from the whole-source total because the default view excludes low-coverage and partial days. Both are observed totals under different, explicitly stated selections.</p>
+<h2 id="missing-data-and-temporal-coverage">Missing data and temporal coverage</h2>
+<table>
+<thead>
+<tr>
+<th>Quality property</th>
+<th style="text-align: right;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Missing active-power readings</td>
+<td style="text-align: right;">25,979</td>
+</tr>
+<tr>
+<td>Missing fraction of source rows</td>
+<td style="text-align: right;">1.252%</td>
+</tr>
+<tr>
+<td>Rows where all seven measurement fields are missing</td>
+<td style="text-align: right;">25,979</td>
+</tr>
+<tr>
+<td>Calendar days with no valid active-power readings</td>
+<td style="text-align: right;">9</td>
+</tr>
+<tr>
+<td>Calendar days in the source</td>
+<td style="text-align: right;">1442</td>
+</tr>
+<tr>
+<td>Days meeting ≥95% daily coverage</td>
+<td style="text-align: right;">1,417</td>
+</tr>
+<tr>
+<td>Days excluded by daily coverage</td>
+<td style="text-align: right;">25</td>
+</tr>
+<tr>
+<td>Invalid parsed timestamps</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>Duplicate timestamps</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>Negative active-power readings</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<p>All expected minute timestamps inside the first/last source boundaries exist. Missing <strong>measurements</strong> therefore differ from missing <strong>timestamps</strong>.</p>
+<h3 id="coverage-rules">Coverage rules</h3>
+<pre><code class="language-text">Daily coverage = valid active-power minutes / 1440
+Hourly coverage = valid active-power minutes / 60
+Daily modeling eligibility = daily coverage ≥ 0.95
+Hourly demand-profile eligibility = hourly coverage ≥ 0.95
+</code></pre>
+<p>The first day contains 396 valid minutes, or 27.50% of a full day. The final day contains 1,263 valid minutes, or 87.71%. Both are below the daily-modeling threshold even though they represent valid observations within the source boundaries.</p>
+<p>Missing readings are preserved as nulls. Spark returns null energy for an entirely missing day. The independent MapReduce output retains that date with zero valid readings and a zero accumulated sum. Verification reconciles these representations <strong>only for comparing accumulated sums</strong>; it does not infer zero true consumption.</p>
+<p>No interpolation or forward fill is performed for energy targets. Forecast features are constructed on a complete calendar-day index. A missing Tuesday does not move Wednesday's seven-day lag onto another weekday. The model discards incomplete target or feature windows, leaving 1,165 evaluated modeling rows and excluding 277 calendar days, including early warm-up days.</p>
+<p>The source wall-clock times are not converted to Indian or French local time. Spark uses a fixed UTC session to make parsing deterministic; metadata is formatted inside Spark before collection to avoid a host-timezone shift. No daylight-saving correction is claimed because source timezone information is absent.</p>
+<h2 id="end-to-end-architecture">End-to-end architecture</h2>
+<h3 id="logical-data-flow">Logical data flow</h3>
+<div class="diagram"><svg role="img" aria-label="Logical data flow: independent Spark and MapReduce branches" viewBox="0 0 980 645" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="#60cdb6"/></marker></defs><path d="M490,80 L490,115" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><path d="M445,180 L190,225" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><path d="M535,180 L790,225" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><path d="M135,290 L125,335" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><path d="M240,290 L395,335" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><path d="M790,290 L790,335" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><path d="M510,365 L660,365" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><path d="M395,400 L395,445" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><path d="M790,400 L790,445" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><path d="M515,478 L660,478" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><path d="M395,510 L440,555" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><path d="M790,510 L550,555" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><path d="M510,390 L610,555" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><rect x="350" y="15" width="280" height="65" rx="10" fill="#14392f" stroke="#42607c"/><text x="490.0" y="40" text-anchor="middle" fill="#70e7cb" font-size="14">Supplied minute-level text</text><text x="490.0" y="59" text-anchor="middle" fill="#bdcce0" font-size="12">Original source file</text><rect x="350" y="115" width="280" height="65" rx="10" fill="#17263b" stroke="#42607c"/><text x="490.0" y="140" text-anchor="middle" fill="#70e7cb" font-size="14">HDFS raw layer</text><text x="490.0" y="159" text-anchor="middle" fill="#bdcce0" font-size="12">Copy of original text</text><rect x="55" y="225" width="270" height="65" rx="10" fill="#17263b" stroke="#42607c"/><text x="190.0" y="250" text-anchor="middle" fill="#70e7cb" font-size="14">Spark SQL on YARN</text><text x="190.0" y="269" text-anchor="middle" fill="#bdcce0" font-size="12">Typed ETL and aggregation</text><rect x="655" y="225" width="270" height="65" rx="10" fill="#17263b" stroke="#42607c"/><text x="790.0" y="250" text-anchor="middle" fill="#70e7cb" font-size="14">MapReduce on YARN</text><text x="790.0" y="269" text-anchor="middle" fill="#bdcce0" font-size="12">Independent daily totals</text><rect x="20" y="335" width="210" height="65" rx="10" fill="#17263b" stroke="#42607c"/><text x="125.0" y="360" text-anchor="middle" fill="#70e7cb" font-size="14">Partitioned Parquet</text><text x="125.0" y="379" text-anchor="middle" fill="#bdcce0" font-size="12">HDFS silver lake</text><rect x="275" y="335" width="235" height="65" rx="10" fill="#17263b" stroke="#42607c"/><text x="392.5" y="360" text-anchor="middle" fill="#70e7cb" font-size="14">Daily / hourly CSV</text><text x="392.5" y="379" text-anchor="middle" fill="#bdcce0" font-size="12">Local analytical aggregates</text><rect x="660" y="335" width="255" height="65" rx="10" fill="#17263b" stroke="#42607c"/><text x="787.5" y="360" text-anchor="middle" fill="#70e7cb" font-size="14">Cross-framework check</text><text x="787.5" y="379" text-anchor="middle" fill="#bdcce0" font-size="12">Energy and valid counts</text><rect x="270" y="445" width="245" height="65" rx="10" fill="#17263b" stroke="#42607c"/><text x="392.5" y="470" text-anchor="middle" fill="#70e7cb" font-size="14">Forecast + anomaly rules</text><text x="392.5" y="489" text-anchor="middle" fill="#bdcce0" font-size="12">Client-side daily analysis</text><rect x="660" y="445" width="255" height="65" rx="10" fill="#17263b" stroke="#42607c"/><text x="787.5" y="470" text-anchor="middle" fill="#70e7cb" font-size="14">Evidence + reports</text><text x="787.5" y="489" text-anchor="middle" fill="#bdcce0" font-size="12">Verified run artifacts</text><rect x="350" y="555" width="280" height="65" rx="10" fill="#14392f" stroke="#42607c"/><text x="490.0" y="580" text-anchor="middle" fill="#70e7cb" font-size="14">Read-only dashboard</text><text x="490.0" y="599" text-anchor="middle" fill="#bdcce0" font-size="12">Consumption / models / evidence</text></svg></div>
+
+<p>The two execution branches read the same source independently. Spark produces the lake and analytical aggregates. MapReduce is a separate numerical check, not a second copy of the Spark job. Their agreement makes unit and aggregation mistakes easier to detect.</p>
+<h3 id="what-runs-where">What runs where?</h3>
+<div class="diagram"><svg role="img" aria-label="Physical deployment: client, HDFS, and YARN processes on one Mac" viewBox="0 0 980 380" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="#60cdb6"/></marker></defs><rect x="5" y="5" width="970" height="360" rx="14" fill="#102035" stroke="#42607c"/><text x="490" y="34" text-anchor="middle" fill="#70e7cb" font-size="17">ONE PHYSICAL MAC · SEPARATE SERVICE PROCESSES</text><rect x="25" y="65" width="285" height="255" rx="10" fill="#17263b" stroke="#42607c"/><text x="167.5" y="90" text-anchor="middle" fill="#70e7cb" font-size="14">CLIENT PROCESSES</text><text x="167.5" y="109" text-anchor="middle" fill="#bdcce0" font-size="12">Run scripts / spark-submit</text><text x="167.5" y="128" text-anchor="middle" fill="#bdcce0" font-size="12">Python Spark driver</text><text x="167.5" y="147" text-anchor="middle" fill="#bdcce0" font-size="12">scikit-learn daily models</text><text x="167.5" y="166" text-anchor="middle" fill="#bdcce0" font-size="12">Streamlit dashboard</text><rect x="345" y="65" width="285" height="255" rx="10" fill="#17263b" stroke="#42607c"/><text x="487.5" y="90" text-anchor="middle" fill="#70e7cb" font-size="14">HDFS STORAGE</text><text x="487.5" y="109" text-anchor="middle" fill="#bdcce0" font-size="12">NameNode: metadata</text><text x="487.5" y="128" text-anchor="middle" fill="#bdcce0" font-size="12">DataNode: data blocks</text><text x="487.5" y="147" text-anchor="middle" fill="#bdcce0" font-size="12">Raw input + silver Parquet</text><rect x="665" y="65" width="285" height="255" rx="10" fill="#17263b" stroke="#42607c"/><text x="807.5" y="90" text-anchor="middle" fill="#70e7cb" font-size="14">YARN EXECUTION</text><text x="807.5" y="109" text-anchor="middle" fill="#bdcce0" font-size="12">ResourceManager: scheduling</text><text x="807.5" y="128" text-anchor="middle" fill="#bdcce0" font-size="12">NodeManager: containers</text><text x="807.5" y="147" text-anchor="middle" fill="#bdcce0" font-size="12">ApplicationMaster</text><text x="807.5" y="166" text-anchor="middle" fill="#bdcce0" font-size="12">Spark executor / MR tasks</text><text x="490" y="345" text-anchor="middle" fill="#bdcce0" font-size="12">Driver → executor; executor ↔ HDFS; YARN allocates containers. Models and UI use local aggregates.</text></svg></div>
+
+<p>Spark uses <strong>YARN client mode</strong>: the driver remains in the local client process while YARN manages the ApplicationMaster and executor containers. Changing this project to cluster mode requires adapting where local aggregate files and reports are written; replacing the submit flag alone is insufficient. <a href="https://spark.apache.org/docs/3.5.6/running-on-yarn.html">Spark 3.5.6 on YARN</a></p>
+<h3 id="run-lifecycle">Run lifecycle</h3>
+<div class="diagram"><svg role="img" aria-label="Run lifecycle from cluster initialization to service shutdown" viewBox="0 0 980 405" xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="#60cdb6"/></marker></defs><rect x="70" y="25" width="375" height="80" rx="10" fill="#14392f" stroke="#42607c"/><text x="257.5" y="50" text-anchor="middle" fill="#70e7cb" font-size="14">01 · Initialize isolated config</text><text x="257.5" y="69" text-anchor="middle" fill="#bdcce0" font-size="12">Start project HDFS / YARN</text><path d="M445,65 L535,65" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><rect x="535" y="25" width="375" height="80" rx="10" fill="#17263b" stroke="#42607c"/><text x="722.5" y="50" text-anchor="middle" fill="#70e7cb" font-size="14">02 · Upload raw source</text><text x="722.5" y="69" text-anchor="middle" fill="#bdcce0" font-size="12">Submit Spark ETL on YARN</text><path d="M910,65 L940,65 L940,135 L35,135 L35,195 L70,195" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><rect x="70" y="155" width="375" height="80" rx="10" fill="#17263b" stroke="#42607c"/><text x="257.5" y="180" text-anchor="middle" fill="#70e7cb" font-size="14">03 · Write Parquet + aggregates</text><text x="257.5" y="199" text-anchor="middle" fill="#bdcce0" font-size="12">Evaluate daily forecast / anomalies</text><path d="M445,195 L535,195" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><rect x="535" y="155" width="375" height="80" rx="10" fill="#17263b" stroke="#42607c"/><text x="722.5" y="180" text-anchor="middle" fill="#70e7cb" font-size="14">04 · Run independent MapReduce</text><text x="722.5" y="199" text-anchor="middle" fill="#bdcce0" font-size="12">Compare results and execute tests</text><path d="M910,195 L940,195 L940,265 L35,265 L35,325 L70,325" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><rect x="70" y="285" width="375" height="80" rx="10" fill="#17263b" stroke="#42607c"/><text x="257.5" y="310" text-anchor="middle" fill="#70e7cb" font-size="14">05 · Capture YARN / HDFS evidence</text><text x="257.5" y="329" text-anchor="middle" fill="#bdcce0" font-size="12">Generate offline reports</text><path d="M445,325 L535,325" stroke="#60cdb6" stroke-width="1.7" fill="none" marker-end="url(#arrow)"/><rect x="535" y="285" width="375" height="80" rx="10" fill="#14392f" stroke="#42607c"/><text x="722.5" y="310" text-anchor="middle" fill="#70e7cb" font-size="14">06 · Stop project services on exit</text><text x="722.5" y="329" text-anchor="middle" fill="#bdcce0" font-size="12">Dashboard reads saved results</text></svg></div>
+
+<h2 id="deployment-and-service-responsibilities">Deployment and service responsibilities</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Responsibility in this project</th>
+<th>What it does not do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HDFS NameNode</td>
+<td>Maintains filesystem metadata and block locations</td>
+<td>Does not store all data blocks or train models</td>
+</tr>
+<tr>
+<td>HDFS DataNode</td>
+<td>Stores the raw and Parquet blocks</td>
+<td>Does not select forecast models</td>
+</tr>
+<tr>
+<td>YARN ResourceManager</td>
+<td>Schedules application resources</td>
+<td>Does not calculate electricity totals</td>
+</tr>
+<tr>
+<td>YARN NodeManager</td>
+<td>Starts and monitors containers on the worker</td>
+<td>Does not provide the dashboard</td>
+</tr>
+<tr>
+<td>ApplicationMaster</td>
+<td>Coordinates an application's containers</td>
+<td>Does not replace HDFS</td>
+</tr>
+<tr>
+<td>Spark driver</td>
+<td>Plans work, coordinates executors, exports small aggregates</td>
+<td>Does not process the source exclusively in pandas</td>
+</tr>
+<tr>
+<td>Spark executor</td>
+<td>Executes distributed parsing, SQL aggregations, and writes</td>
+<td>Does not train this project's scikit-learn models</td>
+</tr>
+<tr>
+<td>MapReduce mapper/reducer</td>
+<td>Independently computes per-date observed energy and counts</td>
+<td>Does not create the forecast</td>
+</tr>
+<tr>
+<td>scikit-learn</td>
+<td>Fits/evaluates models on daily aggregates</td>
+<td>Does not run on YARN in this implementation</td>
+</tr>
+<tr>
+<td>Streamlit + Plotly</td>
+<td>Displays saved aggregates, metrics, and evidence</td>
+<td>Does not represent a live meter feed</td>
+</tr>
+</tbody>
+</table>
+<p>Hadoop's pseudo-distributed mode uses separate daemon processes on one node. The source project follows that teaching pattern with its own directories and ports. <a href="https://hadoop.apache.org/docs/r3.3.6/hadoop-project-dist/hadoop-common/SingleCluster.html">Hadoop single-node setup</a></p>
+<h3 id="verified-configuration">Verified configuration</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Project value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Java</td>
+<td>11.0.32 in the recorded environment</td>
+</tr>
+<tr>
+<td>Hadoop</td>
+<td>3.3.6</td>
+</tr>
+<tr>
+<td>Spark</td>
+<td>3.5.6</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>3.11.16</td>
+</tr>
+<tr>
+<td>Spark master</td>
+<td><code>yarn</code></td>
+</tr>
+<tr>
+<td>Spark deploy mode</td>
+<td><code>client</code></td>
+</tr>
+<tr>
+<td>Spark driver heap</td>
+<td>1 GiB</td>
+</tr>
+<tr>
+<td>Spark executors</td>
+<td>One executor, two cores, 1 GiB heap</td>
+</tr>
+<tr>
+<td>Spark ApplicationMaster heap</td>
+<td>512 MiB, plus framework overhead</td>
+</tr>
+<tr>
+<td>Spark SQL shuffle partitions</td>
+<td>8</td>
+</tr>
+<tr>
+<td>YARN worker advertised resources</td>
+<td>4,096 MiB and four virtual cores</td>
+</tr>
+<tr>
+<td>YARN allocation range</td>
+<td>256–4,096 MiB per container</td>
+</tr>
+<tr>
+<td>Queue</td>
+<td><code>default</code>, capacity 100%</td>
+</tr>
+<tr>
+<td>HDFS replication</td>
+<td>1</td>
+</tr>
+<tr>
+<td>MapReduce job</td>
+<td>Two map tasks and one reduce task in the recorded run</td>
+</tr>
+<tr>
+<td>MapReduce task / AM memory request</td>
+<td>512 MiB each</td>
+</tr>
+</tbody>
+</table>
+<p>These are container and JVM settings, not a claim that the whole application needs exactly that much physical RAM. The NodeManager's physical/virtual memory enforcement is disabled in this local macOS teaching configuration; it is not a production sizing policy.</p>
+<h3 id="ports-and-isolation">Ports and isolation</h3>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Address / port</th>
+<th>Availability</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HDFS RPC</td>
+<td><code>hdfs://localhost:19000</code></td>
+<td>While the cluster is running</td>
+</tr>
+<tr>
+<td>NameNode UI</td>
+<td><code>http://127.0.0.1:19870</code></td>
+<td>While the cluster is running</td>
+</tr>
+<tr>
+<td>DataNode transfer / HTTP / IPC</td>
+<td>19866 / 19864 / 19867</td>
+<td>Project service ports</td>
+</tr>
+<tr>
+<td>YARN client RPC</td>
+<td><code>localhost:18032</code></td>
+<td>While ResourceManager is running</td>
+</tr>
+<tr>
+<td>YARN scheduler / tracker / admin</td>
+<td>18030 / 18031 / 18033</td>
+<td>Project service ports</td>
+</tr>
+<tr>
+<td>ResourceManager UI</td>
+<td><code>http://127.0.0.1:18088</code></td>
+<td>While the cluster is running</td>
+</tr>
+<tr>
+<td>NodeManager / localizer / UI</td>
+<td>18041 / 18040 / 18042</td>
+<td>While NodeManager is running</td>
+</tr>
+<tr>
+<td>Dashboard</td>
+<td><code>http://127.0.0.1:18501</code></td>
+<td>While <code>dashboard.sh</code> is running</td>
+</tr>
+</tbody>
+</table>
+<p><code>configure_cluster.py</code> generates XML in the project's <code>conf/</code>. NameNode/DataNode state, container files, PID files, and logs are under <code>runtime/</code>. The first startup formats only this project's NameNode storage, and only when its <code>current/VERSION</code> file does not exist. Existing global Hadoop configuration and the original source file are not replaced.</p>
+<h2 id="data-layers-and-output-schemas">Data layers and output schemas</h2>
+<h3 id="storage-layers">Storage layers</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Location</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Original source</td>
+<td><code>../household_power_consumption.txt</code></td>
+<td>Supplied semicolon text, untouched</td>
+</tr>
+<tr>
+<td>Raw / bronze</td>
+<td><code>hdfs://localhost:19000/energy-insights/raw/household_power_consumption.txt</code></td>
+<td>HDFS copy of the input</td>
+</tr>
+<tr>
+<td>Typed / silver</td>
+<td><code>hdfs://localhost:19000/energy-insights/silver/</code></td>
+<td>Nullable measurements, timestamps, energy/residual fields, year/month partitions</td>
+</tr>
+<tr>
+<td>Analytical / gold</td>
+<td>Local <code>results/</code></td>
+<td>Daily/hourly aggregates, prediction and anomaly tables, evidence</td>
+</tr>
+<tr>
+<td>Model artifact</td>
+<td>Local <code>results/model.pkl</code></td>
+<td>Selected evaluation model and feature names</td>
+</tr>
+</tbody>
+</table>
+<p>“Bronze/silver/gold” describes the logical stages, not three additional deployed products. The directory names in the actual project are <code>raw</code>, <code>silver</code>, and <code>results</code>.</p>
+<p>Example lake layout:</p>
+<pre><code class="language-text">/energy-insights/silver/
+└── year=2009/
+    └── month=1/
+        └── part-....snappy.parquet
+</code></pre>
+<p>In the recorded run, the raw HDFS file used 132,960,755 bytes and the processed Parquet dataset used 34,329,777 logical bytes. This is about 74.18% less storage than the text file, despite the derived fields. It is a measured storage comparison, not a query-speed benchmark. Replication is one in this cluster.</p>
+<h3 id="silver-record-schema">Silver record schema</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>timestamp</code></td>
+<td>Timestamp</td>
+<td>Parsed source wall-clock minute</td>
+</tr>
+<tr>
+<td><code>global_active_power</code>, <code>global_reactive_power</code></td>
+<td>Nullable double</td>
+<td>Original power measurements</td>
+</tr>
+<tr>
+<td><code>voltage</code>, <code>global_intensity</code></td>
+<td>Nullable double</td>
+<td>Original voltage/current measurements</td>
+</tr>
+<tr>
+<td><code>sub_metering_1</code>, <code>sub_metering_2</code>, <code>sub_metering_3</code></td>
+<td>Nullable double</td>
+<td>Original minute Wh measurements</td>
+</tr>
+<tr>
+<td><code>energy_kwh</code></td>
+<td>Nullable double</td>
+<td><code>global_active_power / 60</code></td>
+</tr>
+<tr>
+<td><code>unmetered_wh</code></td>
+<td>Nullable double</td>
+<td>Signed calculated residual</td>
+</tr>
+<tr>
+<td><code>year</code>, <code>month</code></td>
+<td>Integer partition keys</td>
+<td>Calendar extraction used in lake paths</td>
+</tr>
+</tbody>
+</table>
+<h3 id="daily-output-resultsdailycsv">Daily output: <code>results/daily.csv</code></h3>
+<p>One row per source calendar day; unique date key.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>date</code></td>
+<td>Calendar date</td>
+</tr>
+<tr>
+<td><code>recorded_minutes</code></td>
+<td>Source rows, including rows with missing power</td>
+</tr>
+<tr>
+<td><code>valid_minutes</code></td>
+<td>Non-null active-power readings</td>
+</tr>
+<tr>
+<td><code>energy_kwh</code></td>
+<td>Sum of observed minute energy; null if all readings are missing</td>
+</tr>
+<tr>
+<td><code>mean_kw</code></td>
+<td>Average active power over valid minutes</td>
+</tr>
+<tr>
+<td><code>peak_kw</code></td>
+<td>Largest valid minute-average power</td>
+</tr>
+<tr>
+<td><code>voltage</code></td>
+<td>Mean of valid voltage measurements</td>
+</tr>
+<tr>
+<td><code>kitchen_kwh</code>, <code>laundry_kwh</code>, <code>climate_kwh</code></td>
+<td>Observed circuit energy sums</td>
+</tr>
+<tr>
+<td><code>other_kwh</code></td>
+<td>Signed residual energy sum</td>
+</tr>
+<tr>
+<td><code>coverage</code></td>
+<td><code>valid_minutes / 1440</code></td>
+</tr>
+<tr>
+<td><code>eligible</code></td>
+<td>Whether coverage is at least 0.95</td>
+</tr>
+</tbody>
+</table>
+<h3 id="other-outputs">Other outputs</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Main fields / purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hourly.csv</code></td>
+<td><code>timestamp</code>, <code>valid_minutes</code>, <code>energy_kwh</code>, <code>mean_kw</code>, <code>peak_kw</code>, <code>coverage</code>; one calendar-hour bucket</td>
+</tr>
+<tr>
+<td><code>forecast_test.csv</code></td>
+<td><code>date</code>, observed target, weekly baseline, each candidate prediction, and validation-selected <code>prediction_kwh</code></td>
+</tr>
+<tr>
+<td><code>anomalies.csv</code></td>
+<td><code>date</code>, <code>energy_kwh</code>, <code>past_median_kwh</code>, <code>robust_z</code> for flagged days</td>
+</tr>
+<tr>
+<td><code>mapreduce_daily.tsv</code></td>
+<td>Headerless date, accumulated kWh, and valid-reading count</td>
+</tr>
+<tr>
+<td><code>manifest.json</code></td>
+<td>Row/timestamp quality, totals, input/lake paths, actual Spark master, application ID, ETL duration</td>
+</tr>
+<tr>
+<td><code>metrics.json</code></td>
+<td>Validation/test scores, split boundaries, selected model, anomaly count, evaluation description</td>
+</tr>
+<tr>
+<td><code>verification.json</code></td>
+<td>Eight successful data checks for this supplied source</td>
+</tr>
+<tr>
+<td><code>ui_verification.json</code></td>
+<td>Nine successful automated tests with verification timestamp</td>
+</tr>
+<tr>
+<td><code>yarn_applications.json</code></td>
+<td>Saved ResourceManager response showing Spark and MapReduce completion</td>
+</tr>
+<tr>
+<td><code>hdfs_status.txt</code>, <code>hdfs_storage.txt</code></td>
+<td>Captured filesystem and logical-storage evidence</td>
+</tr>
+<tr>
+<td><code>dataset_statistics.csv</code>, <code>dataset_annual.csv</code>, <code>dataset_profile.json</code></td>
+<td>Full-source descriptive profile, annual observations, size/hash provenance</td>
+</tr>
+</tbody>
+</table>
+<h2 id="spark-processing-explained">Spark processing explained</h2>
+<ol>
+<li><strong>Upload:</strong> <code>run_pipeline.sh</code> copies the original file to the project's raw HDFS path.</li>
+<li><strong>Read:</strong> Spark uses a declared nine-string-column schema and semicolon delimiter. <code>?</code> becomes null; empty numeric fields also become null after parsing/casting.</li>
+<li><strong>Parse:</strong> <code>Date</code> and <code>Time</code> become a timestamp; measurement fields become nullable doubles.</li>
+<li><strong>Validate:</strong> Compute counts, first/last timestamps, numeric missingness, negative active power, and duplicate timestamps. Invalid timestamps, duplicates, or negative active power stop ETL.</li>
+<li><strong>Derive:</strong> Compute minute kWh and the signed unmetered Wh residual. Keep the source values intact.</li>
+<li><strong>Persist:</strong> Write Parquet using year/month partition directories. The write is <code>overwrite</code> for this project's silver output.</li>
+<li><strong>Aggregate:</strong> Spark SQL computes observed daily and hourly summaries and valid-reading counts.</li>
+<li><strong>Collect small results:</strong> Only the aggregate tables are converted to pandas and exported as CSV. The minute-level source is not collected into pandas by the distributed pipeline.</li>
+<li><strong>Record lineage:</strong> Save master, application ID, paths, quality, totals, and elapsed ETL time in the manifest.</li>
+</ol>
+<p>The parsed DataFrame is cached because several actions reuse it. Grouping by date/hour triggers distributed aggregation and shuffle. Year/month partitions support filtering by partition keys; the example SQL includes <code>EXPLAIN</code> to inspect that plan. Actual executor parallelism remains limited by this one-worker configuration.</p>
+<p>The recorded ETL duration is 28.18 seconds, including parsing, checks, lake writing, and aggregate export. It excludes model evaluation, MapReduce verification, cluster startup, and document generation. It is one observed run, not an average or a fair comparison against other engines.</p>
+<h2 id="independent-hadoop-mapreduce-verification">Independent Hadoop MapReduce verification</h2>
+<p>The mapper reads source lines directly, skips the header, parses the date, and converts numeric active power into <code>kW/60</code> kWh. It accumulates <code>(energy_sum, valid_count)</code> by date within each mapper before emitting records, reducing shuffle volume.</p>
+<p>The date key is initialized even if a reading is missing. Thus a completely missing day remains represented as a zero-count group. Hadoop shuffles records by date; the reducer merges partial sums and counts. The job uses a unique output directory on each run.</p>
+<pre><code class="language-text">Input minute rows → per-mapper date totals → Hadoop shuffle/sort → reducer totals → TSV
+</code></pre>
+<p>The recorded job launched two mappers and one reducer. Its input-record counter includes the text header, so it is one larger than the source measurement count. Verification joins the output to Spark by date, requires one row per day, compares valid counts exactly, and compares energy totals with a floating-point tolerance of 1e-6 kWh. Different accumulation order can cause insignificant last-decimal differences.</p>
+<p>This is batch MapReduce using the Hadoop Streaming interface for Python mapper/reducer programs. It is unrelated to live event streaming.</p>
+<h2 id="forecasting-methodology">Forecasting methodology</h2>
+<h3 id="target-and-prediction-contract">Target and prediction contract</h3>
+<p>The target is <strong>observed daily energy in kWh on days with ≥95% coverage</strong>. It is not a guaranteed estimate of complete-day true consumption; up to 5% of minute measurements can still be missing on an eligible day.</p>
+<p>The task is rolling <strong>one-day-ahead</strong> prediction. When predicting day <code>t</code>, earlier daily observations are available. The current day's power readings and energy target are never input features.</p>
+<h3 id="feature-design">Feature design</h3>
+<table>
+<thead>
+<tr>
+<th>Features</th>
+<th>Construction</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lag_1</code>, <code>lag_2</code></td>
+<td>Energy one/two calendar days earlier</td>
+<td>Recent demand level</td>
+</tr>
+<tr>
+<td><code>lag_7</code>, <code>lag_14</code>, <code>lag_28</code></td>
+<td>Energy one/two/four weeks earlier</td>
+<td>Weekly recurrence</td>
+</tr>
+<tr>
+<td><code>mean_7</code>, <code>mean_28</code></td>
+<td>Rolling mean after a one-day shift</td>
+<td>Recent baseline without using today's target</td>
+</tr>
+<tr>
+<td><code>std_7</code>, <code>std_28</code></td>
+<td>Rolling standard deviation after a one-day shift</td>
+<td>Recent variability</td>
+</tr>
+<tr>
+<td><code>weekday</code></td>
+<td>Monday=0 through Sunday=6</td>
+<td>Day-of-week pattern</td>
+</tr>
+<tr>
+<td><code>weekend</code></td>
+<td>1 on Saturday/Sunday</td>
+<td>Simple weekday/weekend distinction</td>
+</tr>
+<tr>
+<td><code>season_sin</code>, <code>season_cos</code></td>
+<td>Sine/cosine of day-of-year / 365.25</td>
+<td>Continuous yearly seasonal cycle</td>
+</tr>
+</tbody>
+</table>
+<p>There are 13 input features. Calendar reindexing happens before shifting. No target interpolation is used. Incomplete features/targets are dropped.</p>
+<h3 id="chronological-splits">Chronological splits</h3>
+<table>
+<thead>
+<tr>
+<th>Split</th>
+<th>First eligible date</th>
+<th>Last eligible date</th>
+<th style="text-align: right;">Usable days</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Train</td>
+<td>2007-01-14</td>
+<td>2009-02-10</td>
+<td style="text-align: right;">699</td>
+</tr>
+<tr>
+<td>Validation</td>
+<td>2009-02-11</td>
+<td>2009-11-30</td>
+<td style="text-align: right;">233</td>
+</tr>
+<tr>
+<td>Test</td>
+<td>2009-12-01</td>
+<td>2010-11-25</td>
+<td style="text-align: right;">233</td>
+</tr>
+</tbody>
+</table>
+<p>Splits are approximately 60%/20%/20% of the usable rows, not randomly selected dates. The date intervals include gaps because incomplete windows are excluded.</p>
+<p>Each learned candidate is trained on the first split and scored on validation. The weekly baseline uses the prior-week observation directly. Lowest validation MAE chooses the model, including the baseline as a candidate. Learned candidates are then refit using train plus validation and scored on test. Test results are reported after selection; they do not determine which model is deployed in the dashboard.</p>
+<h3 id="model-configuration">Model configuration</h3>
+<table>
+<thead>
+<tr>
+<th>Candidate</th>
+<th>Actual configuration</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Weekly baseline</td>
+<td>Prediction = <code>lag_7</code></td>
+<td>Simple benchmark; no learned parameters</td>
+</tr>
+<tr>
+<td>Ridge regression</td>
+<td>StandardScaler + Ridge, <code>alpha=10</code></td>
+<td>Regularized linear prediction</td>
+</tr>
+<tr>
+<td>Random forest</td>
+<td>200 trees, depth ≤10, leaf size ≥5, seed 42, two jobs</td>
+<td>Nonlinear feature interactions</td>
+</tr>
+<tr>
+<td>Histogram gradient boosting</td>
+<td>200 iterations, ≤15 leaves, L2=5, seed 42</td>
+<td>Sequential nonlinear corrections</td>
+</tr>
+</tbody>
+</table>
+<p>Scaler fitting is part of the Ridge training pipeline and uses the relevant training portion. Learned predictions are clipped at zero to prevent negative energy forecasts. Other unspecified estimator settings follow the versions frozen in <code>requirements.lock.txt</code>.</p>
+<h3 id="metrics">Metrics</h3>
+<pre><code class="language-text">MAE = mean(abs(observed − predicted))                  [kWh/day]
+RMSE = sqrt(mean((observed − predicted)^2))             [kWh/day]
+WAPE = 100 × sum(abs(observed − predicted)) / sum(abs(observed)) [%]
+</code></pre>
+<p>MAE is the average absolute daily error. RMSE penalizes larger mistakes more strongly. WAPE is relative to total observed test energy; it is not an accuracy percentage.</p>
+<h2 id="model-results-and-interpretation">Model results and interpretation</h2>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th style="text-align: right;">Validation MAE (kWh)</th>
+<th style="text-align: right;">Test MAE (kWh)</th>
+<th style="text-align: right;">Test RMSE (kWh)</th>
+<th style="text-align: right;">Test WAPE (%)</th>
+<th>Selected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Weekly baseline</td>
+<td style="text-align: right;">5.737</td>
+<td style="text-align: right;">5.996</td>
+<td style="text-align: right;">8.026</td>
+<td style="text-align: right;">24.037</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Ridge</td>
+<td style="text-align: right;">4.509</td>
+<td style="text-align: right;">4.288</td>
+<td style="text-align: right;">5.812</td>
+<td style="text-align: right;">17.192</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Random forest</td>
+<td style="text-align: right;">4.566</td>
+<td style="text-align: right;">3.943</td>
+<td style="text-align: right;">5.356</td>
+<td style="text-align: right;">15.809</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Gradient boosting</td>
+<td style="text-align: right;">4.900</td>
+<td style="text-align: right;">4.238</td>
+<td style="text-align: right;">5.526</td>
+<td style="text-align: right;">16.992</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Ridge is selected because it has the lowest validation MAE.</strong> Its test MAE is 4.288 kWh/day, compared with 5.996 kWh/day for the weekly baseline: about 28.5% less absolute error. Random forest happens to achieve lower test MAE, but choosing it after inspecting test results would misuse the holdout for selection.</p>
+<p>The selected model's WAPE is 17.19%. This does not mean “82.81% accurate” under a universal accuracy definition. It means total absolute error is about 17.19% of the observed test energy.</p>
+<p>The final source day is incomplete, so the prospective next-day feature vector contains missing inputs. <code>next_day_forecast</code> is therefore null. Historical predictions on eligible test dates still exist. A missing future prediction is an explicit data-completeness decision, not evidence that the model failed to fit.</p>
+<p><code>model.pkl</code> stores the selected evaluation artifact when the analysis runs; it is not versioned in Git. Recreate it with <code>.venv/bin/python src/analyze.py --results results</code> using the saved daily aggregates. The standalone notebook/online model-serving API and prediction intervals are not implemented. Use the version-locked project environment when inspecting this artifact.</p>
+<h2 id="anomaly-detection">Anomaly detection</h2>
+<p>The rule operates on eligible daily energy:</p>
+<pre><code class="language-text">Reference window = previous 28 calendar days, excluding today
+Required observations = at least 14 eligible days
+Median = median(reference energy)
+MAD = median(abs(reference energy − Median))
+Robust z = (today's energy − Median) / (1.4826 × MAD)
+Flag if abs(Robust z) &gt; 3.5
+</code></pre>
+<p>A zero MAD yields an undefined denominator and does not produce a score through this implementation. Null targets/reference values are excluded by the eligibility/rolling rules. The current day does not affect its reference window.</p>
+<p>There are 53 flagged days in the full dataset. Positive scores indicate unusually high demand; negative scores indicate unusually low demand compared with the recent reference. Holidays, occupancy, weather, or measurement problems are possible hypotheses, not demonstrated causes. No labeled fault dataset is available, so detection precision/recall is not claimed.</p>
+<h2 id="dashboard-pages-and-filter-behavior">Dashboard pages and filter behavior</h2>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th>Information shown</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Overview</td>
+<td>Selected energy, daily average, minute peak, coverage, demand chart, highest observed day</td>
+</tr>
+<tr>
+<td>Consumption</td>
+<td>Daily trend, circuit-energy shares, weekday/hour demand heatmap, selected reading table</td>
+</tr>
+<tr>
+<td>Forecasting</td>
+<td>Validation-selected model, full-test benchmark, date-filtered predictions and export, candidate comparison</td>
+</tr>
+<tr>
+<td>Anomalies</td>
+<td>Date-filtered unusual-day flags, scores, direction, downloadable selection</td>
+</tr>
+<tr>
+<td>Data &amp; platform</td>
+<td>Source quality, selected coverage chart, architecture, saved YARN evidence, checks</td>
+</tr>
+<tr>
+<td>Project &amp; downloads</td>
+<td>Reports, source explanation, selected daily CSV, run/setup instructions</td>
+</tr>
+</tbody>
+</table>
+<p>Quick range chooses a year; the observation window supports custom dates. Coverage filtering affects consumption and anomaly views. Forecast plots/exports use selected dates, but benchmark scores retain the full test period and are labeled accordingly. Data/platform quality counts describe the full source; its coverage chart follows the selected dates.</p>
+<p>Charts preserve missing-day gaps rather than connecting omitted days. The heatmap always has seven weekday rows and 24 hour columns; cells without observations remain blank. Empty, missing-only, and out-of-test selections show explanations. Downloaded daily/prediction selections obey the displayed filters. The saved YARN response describes completed runs, not live cluster health.</p>
+<h2 id="installation-and-full-reproduction">Installation and full reproduction</h2>
+<h3 id="prerequisites-and-supported-local-setup">Prerequisites and supported local setup</h3>
+<p>The verified machine has Java 11, Hadoop 3.3.6, Python 3.11, and the project virtual environment. The scripts default to:</p>
+<pre><code class="language-text">JAVA_HOME=/opt/homebrew/opt/openjdk@11
+HADOOP_HOME=/usr/local/hadoop
+Python interpreter=WattWise/.venv/bin/python
+</code></pre>
+<p><code>JAVA_HOME</code> and <code>HADOOP_HOME</code> can be supplied before running the scripts. The generated MapReduce classpath and Streaming JAR path are also tied to this Hadoop installation/version. A different installation must adapt those references in the configuration generator and MapReduce launcher; setting one environment variable alone is insufficient.</p>
+<h3 id="create-or-rebuild-the-project-environment">Create or rebuild the project environment</h3>
+<pre><code class="language-bash">cd /Users/neev/Downloads/BIGDATA/WattWise
+/opt/homebrew/bin/python3.11 -m venv .venv
+.venv/bin/pip install -r requirements.lock.txt
+</code></pre>
+<p>The lock file records the environment used for the verified results. <code>requirements.txt</code> gives the broader dependency ranges; use the lock for closest reproduction. Do not move an existing virtual environment between directories; recreate it after relocating the ZIP.</p>
+<h3 id="full-hadoopyarn-execution">Full Hadoop/YARN execution</h3>
+<pre><code class="language-bash">bash scripts/run_all.sh
+</code></pre>
+<p>The script starts the isolated services, uploads the source, executes Spark, evaluates models, runs MapReduce, verifies data and dashboard behavior, captures evidence, generates reports, and stops services on exit. The original source is untouched. Re-runs overwrite this project's silver and analytical outputs; each MapReduce result has its own run path.</p>
+<p>Alternative source location:</p>
+<pre><code class="language-bash">bash scripts/run_all.sh /absolute/path/household_power_consumption.txt
+</code></pre>
+<p>The test contracts assume the supplied dataset's row count and timestamp boundaries. Adapting the pipeline to another dataset requires adapting those contracts and documenting the new source. The original report hashing step resolves the source beside the project; if an alternative input is used, confirm that provenance points to that input before treating the report as authoritative.</p>
+<h3 id="individual-components">Individual components</h3>
+<pre><code class="language-bash">bash scripts/start_cluster.sh
+bash scripts/run_pipeline.sh yarn
+bash scripts/run_mapreduce.sh
+.venv/bin/python scripts/verify_project.py
+.venv/bin/python scripts/build_report.py
+.venv/bin/python scripts/profile_dataset.py
+.venv/bin/python scripts/build_readme.py
+bash scripts/stop_cluster.sh
+</code></pre>
+<p>The profiling utility is an optional local descriptive audit: it reads the modest supplied file into pandas to compute exact quantiles. It is separate from the distributed ETL and is not a memory-scalable replacement for Spark.</p>
+<h3 id="local-spark-fallback">Local Spark fallback</h3>
+<pre><code class="language-bash">bash scripts/run_pipeline.sh local /absolute/path/household_power_consumption.txt
+.venv/bin/python tests/verify_results.py --results results
+</code></pre>
+<p>This runs Spark with two local worker threads and writes Parquet under <code>data/silver</code>. It does not demonstrate YARN or execute the independent Hadoop job. The manifest records the actual master. If retained evidence is from an earlier YARN run, interpret it as historical evidence, not proof that this new local run used YARN.</p>
+<h2 id="verification-and-execution-evidence">Verification and execution evidence</h2>
+<h3 id="eight-data-checks">Eight data checks</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Why it matters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Source row count and wall-clock boundaries</td>
+<td>Detect changed input or timezone-shifted provenance</td>
+</tr>
+<tr>
+<td>Unique timestamps</td>
+<td>Avoid double-counting a minute</td>
+</tr>
+<tr>
+<td>Energy conservation</td>
+<td>Circuit plus signed residual equals observed total</td>
+</tr>
+<tr>
+<td>Hourly/daily agreement</td>
+<td>Different aggregate granularities reconcile</td>
+</tr>
+<tr>
+<td>Missing-data accounting</td>
+<td>Valid counts equal raw minus missing measurements</td>
+</tr>
+<tr>
+<td>Coverage bounds</td>
+<td>Ratios remain within [0, 1]</td>
+</tr>
+<tr>
+<td>Chronological forecast</td>
+<td>Predictions are dated in increasing order and present</td>
+</tr>
+<tr>
+<td>Independent MapReduce/Spark agreement</td>
+<td>Separate engines reproduce daily totals and counts</td>
+</tr>
+</tbody>
+</table>
+<h3 id="nine-automated-tests">Nine automated tests</h3>
+<p>The suite exercises all six pages, year presets, single-day heatmaps, missing-only days, ranges without test predictions, forecast-export boundaries, visible calendar gaps, seven-day calendar lags, and the requirement that editing current/future targets cannot alter today's features.</p>
+<pre><code class="language-bash">.venv/bin/python scripts/verify_project.py
+</code></pre>
+<p>Successful execution writes <code>ui_verification.json</code>. The independent-engine check requires <code>mapreduce_daily.tsv</code>; a local-only verification without that file cannot claim cross-framework agreement.</p>
+<h3 id="recorded-yarn-applications">Recorded YARN applications</h3>
+<table>
+<thead>
+<tr>
+<th>Framework / application</th>
+<th>Application ID</th>
+<th>Final state</th>
+<th>Final status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>EnergyInsights-Household-ETL</td>
+<td><code>application_1791813966040_0001</code></td>
+<td>FINISHED</td>
+<td>SUCCEEDED</td>
+</tr>
+<tr>
+<td>EnergyInsights-Daily-MapReduce</td>
+<td><code>application_1791813966040_0002</code></td>
+<td>FINISHED</td>
+<td>SUCCEEDED</td>
+</tr>
+</tbody>
+</table>
+<p>Saved evidence retains the original EnergyInsights application names from runs before the WattWise rename; new submissions use WattWise names. Redacted historical job logs are included under <code>evidence/</code>; local paths and private addresses were removed while IDs, counters, and results were retained. Application IDs change on later runs. The source files for these values are <code>results/yarn_applications.json</code> and <code>results/manifest.json</code>. Job logs and the HDFS reports are retained under <code>runtime/logs/</code> and <code>results/</code>. A completed job status establishes execution through the toolchain; it does not establish multi-machine performance or production reliability.</p>
+<h2 id="repository-map">Repository map</h2>
+<pre><code class="language-text">BIGDATA/
+├── household_power_consumption.txt
+└── WattWise/
+    ├── README.md
+    ├── app.py
+    ├── requirements.txt
+    ├── requirements.lock.txt
+    ├── .streamlit/config.toml
+    ├── conf/                         generated Hadoop configuration
+    ├── src/
+    │   ├── spark_pipeline.py         distributed ETL and SQL aggregation
+    │   ├── analyze.py                forecast evaluation and anomaly rule
+    │   ├── mapper.py                 independent per-mapper totals
+    │   ├── reducer.py                shuffled-date reduction
+    │   ├── dashboard_data.py         tested selection and gap logic
+    │   └── report_layout.py          formatted offline-report renderer
+    ├── scripts/
+    │   ├── env.sh                    Java/Hadoop/Python project environment
+    │   ├── configure_cluster.py      isolated service configuration
+    │   ├── start_cluster.sh          initialize once, then start services
+    │   ├── stop_cluster.sh           stop only project services
+    │   ├── run_all.sh                complete pipeline lifecycle
+    │   ├── run_pipeline.sh           Spark submission and modeling
+    │   ├── run_mapreduce.sh          independent YARN job
+    │   ├── verify_project.py         result checks and automated test evidence
+    │   ├── dashboard.sh              read-only dashboard launcher
+    │   ├── build_report.py           generated academic report
+    │   ├── fetch_dataset.py          download and verify original UCI source
+    │   ├── profile_dataset.py        optional full-source descriptive audit
+    │   └── build_readme.py           formatted advanced-guide export
+    ├── tests/                        data, UI, filter, temporal contracts
+    ├── sql/analytics.sql             exploration and partition pruning
+    ├── docs/                         report, advanced HTML guide, viva
+    ├── results/                      measured analytical and evidence files
+    └── runtime/                      local HDFS state, containers, PIDs, logs
+</code></pre>
+<p>The GitHub repository includes source code, documentation, saved analytical results, and execution evidence. The raw dataset, virtual environment, and live cluster storage are excluded from Git. Fetch the source with <code>scripts/fetch_dataset.py</code> and regenerate runtime state through setup and the pipeline. Previously exported ZIP packages may also contain the source dataset.</p>
+<h2 id="sql-and-cluster-inspection-examples">SQL and cluster inspection examples</h2>
+<p>While the cluster is running, load its environment first:</p>
+<pre><code class="language-bash">source scripts/env.sh
+hdfs dfs -ls /energy-insights/raw
+hdfs dfs -ls /energy-insights/silver
+hdfs dfs -du -s /energy-insights/raw /energy-insights/silver
+yarn node -list
+yarn application -list -appStates ALL
+</code></pre>
+<p>Spark SQL examples are in <code>sql/analytics.sql</code>. In a configured <code>spark-sql</code> session:</p>
+<pre><code class="language-sql">CREATE OR REPLACE TEMP VIEW readings USING parquet
+OPTIONS (path 'hdfs://localhost:19000/energy-insights/silver');
+
+SELECT year, month, SUM(energy_kwh) AS observed_kwh,
+       COUNT(global_active_power) AS valid_minutes
+FROM readings
+GROUP BY year, month
+ORDER BY year, month;
+
+EXPLAIN SELECT AVG(global_active_power)
+FROM readings
+WHERE year = 2009 AND month = 1;
+</code></pre>
+<p>The first query aggregates observed energy and reports the number of valid readings. The second inspects whether partition filters are present; it does not independently benchmark pruning speed.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Explanation / action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HDFS connection refused</td>
+<td>Start the project cluster, source <code>scripts/env.sh</code>, and inspect <code>runtime/logs/</code></td>
+</tr>
+<tr>
+<td>YARN application stays accepted</td>
+<td>Inspect worker registration, default queue capacity, available memory, and application diagnostics</td>
+</tr>
+<tr>
+<td>Queue initialization failure</td>
+<td>Regenerate config; <code>capacity-scheduler.xml</code> supplies the default queue</td>
+</tr>
+<tr>
+<td>Native Hadoop library warning on macOS</td>
+<td>This verified installation uses Java fallbacks; judge success from job status and outputs</td>
+</tr>
+<tr>
+<td>Spark date parsing fails</td>
+<td>Accept single-digit dates with <code>d/M/yyyy</code>; do not force zero-padded input</td>
+</tr>
+<tr>
+<td>Timestamp shifts by host timezone</td>
+<td>Format source boundary timestamps in Spark before collecting metadata</td>
+</tr>
+<tr>
+<td>No forecast in a selected interval</td>
+<td>Choose dates inside the held-out test period; model metrics remain full-test values</td>
+</tr>
+<tr>
+<td>No prospective next-day forecast</td>
+<td>The final feature window is incomplete; do not fill it silently</td>
+</tr>
+<tr>
+<td>Selected energy differs from source total</td>
+<td>Coverage/date filtering changes which observed readings are included</td>
+</tr>
+<tr>
+<td>Entirely missing day has blank energy</td>
+<td>This is intentional; true consumption is unknown</td>
+</tr>
+<tr>
+<td>ZIP moved to a new folder</td>
+<td>Recreate <code>.venv</code>, regenerate config, and adapt paths/install defaults</td>
+</tr>
+<tr>
+<td>Source replaced with a different dataset</td>
+<td>Update data contracts, rerun profiling, and regenerate documentation</td>
+</tr>
+</tbody>
+</table>
+<h2 id="limitations-and-a-future-scaling-path">Limitations and a future scaling path</h2>
+<p>The current findings apply to one historical household. Missing energy remains unknown. Circuit groups cannot isolate devices. No tariff, weather, occupancy, labeled faults, prediction intervals, or live ingestion feed is supplied. Passing automated tests does not establish anomaly-detection accuracy. The threshold of 95% trades data availability against incomplete targets; a different threshold could change retained days and model scores.</p>
+<p>The current configuration has one worker and replication one. It demonstrates real HDFS/YARN execution but not multi-node speedup, replica resilience, service high availability, or a production security architecture. The macOS teaching setup needs configuration changes before deployment on other machines.</p>
+<table>
+<thead>
+<tr>
+<th>Future work</th>
+<th>Required implementation / validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Multiple workers</td>
+<td>Replace loopback addresses, distribute dependencies, change memory/core sizing, test failures</td>
+</tr>
+<tr>
+<td>Higher HDFS replication</td>
+<td>Add sufficient DataNodes and validate recovery behavior</td>
+</tr>
+<tr>
+<td>Environment packaging</td>
+<td>Ship a Python environment/container to workers rather than assume an identical local path</td>
+</tr>
+<tr>
+<td>More households</td>
+<td>Add household IDs and household-aware partitions/splits</td>
+</tr>
+<tr>
+<td>Weather/occupancy features</td>
+<td>Obtain aligned observations and prevent future-information leakage</td>
+</tr>
+<tr>
+<td>Rolling-origin evaluation</td>
+<td>Repeated chronological training windows and stable comparison protocol</td>
+</tr>
+<tr>
+<td>Forecast intervals</td>
+<td>Calibrate uncertainty on validation data and measure held-out coverage</td>
+</tr>
+<tr>
+<td>Live ingestion</td>
+<td>Add a source/transport and a separately tested streaming pipeline</td>
+</tr>
+<tr>
+<td>Labeled anomaly detection</td>
+<td>Acquire labels before claiming fault precision/recall</td>
+</tr>
+<tr>
+<td>Reproducibility hardening</td>
+<td>Atomic outputs, source-path-aware provenance, versioned runs, explicit dependency portability</td>
+</tr>
+</tbody>
+</table>
+<p>These items describe future scope, not existing features.</p>
+<h2 id="presentation-and-viva-notes">Presentation and viva notes</h2>
+<p>For an eight-minute demonstration, present the problem and source first, explain power-to-energy conversion, show the two architecture branches, demonstrate consumption and forecast pages, show the completed YARN applications and independent agreement, then discuss limitations.</p>
+<p>Useful answers:</p>
+<ul>
+<li><strong>HDFS versus YARN:</strong> HDFS stores files; YARN allocates containers; Spark and MapReduce compute the results.</li>
+<li><strong>Why two frameworks?</strong> Separate implementations strengthen confidence in totals and missing-value treatment.</li>
+<li><strong>Why not random splits?</strong> Mixing past and future weakens the forecast evaluation.</li>
+<li><strong>Why Ridge when random forest has better test MAE?</strong> Validation chooses the model before test inspection.</li>
+<li><strong>Why no future estimate?</strong> Incomplete lag windows make that specific prediction unsupported.</li>
+<li><strong>Is a flag a fault?</strong> No; it is a statistical deviation requiring investigation.</li>
+<li><strong>Is the file too small for Hadoop?</strong> It fits on a laptop; the project demonstrates the toolchain and explains that boundary honestly.</li>
+</ul>
+<p>Read <code>docs/VIVA.md</code> for the complete presentation script and additional questions.</p>
+<h2 id="references-and-dataset-attribution">References and dataset attribution</h2>
+<p>Dataset attribution: Hebrail, G. &amp; Berard, A. (2006). <em>Individual Household Electric Power Consumption</em> [Dataset]. UCI Machine Learning Repository. <a href="https://doi.org/10.24432/C58K54">DOI: 10.24432/C58K54</a>.</p>
+<p>UCI lists the dataset under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Retain dataset attribution when sharing it. This does not assign a license to the project's source code. <a href="https://archive.ics.uci.edu/dataset/235/individual+household+electric+power+consumption">UCI license and citation</a></p>
+<p>Technical references:</p>
+<ul>
+<li><a href="https://hadoop.apache.org/docs/r3.3.6/hadoop-project-dist/hadoop-common/SingleCluster.html">Hadoop 3.3.6 single-node setup</a></li>
+<li><a href="https://spark.apache.org/docs/3.5.6/running-on-yarn.html">Spark 3.5.6 on YARN</a></li>
+<li><a href="https://spark.apache.org/docs/3.5.6/sql-programming-guide.html">Spark 3.5.6 SQL guide</a></li>
+</ul>
+<p>Documentation snapshot: 12 October 2026. Numerical tables describe the supplied file and saved verified runs; future input, threshold, dependency, or model changes require refreshing the profile and guide.</p></main></body></html>
