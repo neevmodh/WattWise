@@ -1,4 +1,4 @@
-pyspark==3.5.6
+pyspark==3.5.8
 pandas>=2.2,<3
 pyarrow>=17
 scikit-learn>=1.5,<2
