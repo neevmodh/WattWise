@@ -19,7 +19,7 @@ narwhals==2.27.1
 numpy==2.4.6
 packaging==26.3
 pandas==2.3.3
-pillow==12.3.0
+pillow==13.0.0
 plotly==6.9.0
 protobuf==7.36.2
 py4j==0.10.9.7
